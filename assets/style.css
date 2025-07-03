@@ -1,0 +1,73 @@
+/* General styles */
+body {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  margin: 0;
+  padding: 0 20px;
+  background-color: #f8f9fa;
+  color: #212529;
+}
+
+/* Header */
+header {
+  background-color: #007acc;
+  color: white;
+  padding: 30px 20px;
+  text-align: center;
+  border-bottom: 4px solid #005a99;
+}
+
+header h1 {
+  margin: 0;
+  font-size: 2rem;
+}
+
+header p {
+  margin-top: 10px;
+  font-size: 1.1rem;
+}
+
+/* Navigation */
+nav {
+  display: flex;
+  gap: 20px;
+  padding: 15px 10px;
+  background-color: #e9ecef;
+  border-bottom: 1px solid #ccc;
+}
+
+nav a {
+  text-decoration: none;
+  color: #007acc;
+  font-weight: bold;
+}
+
+nav a:hover {
+  text-decoration: underline;
+}
+
+/* Section */
+section {
+  padding: 30px 10px;
+}
+
+section h2 {
+  font-size: 1.5rem;
+  margin-bottom: 10px;
+  color: #343a40;
+}
+
+ul {
+  list-style: square;
+  padding-left: 20px;
+}
+
+/* Footer */
+footer {
+  background-color: #f1f1f1;
+  text-align: center;
+  padding: 15px;
+  font-size: 0.9rem;
+  color: #555;
+  margin-top: 30px;
+  border-top: 1px solid #ccc;
+}
