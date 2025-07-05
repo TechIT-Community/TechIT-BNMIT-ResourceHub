@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>TechIT Search Bot</title>
+  <!-- <link rel="stylesheet" href="assets/style.css"> -->
+  <script src="https://cdn.jsdelivr.net/npm/fuse.js@6.6.2"></script>
+</head>
+<body>
+  <h1>🔍 TechIT Resource Assistant</h1>
+  <div class="chatbox">
+    <input type="text" id="searchInput" placeholder="Search for notes, labs, papers..." />
+    <button onclick="runSearch()">Search</button>
+    <div id="results"></div>
+  </div>
+
+  <script>
+    let fuse;
+    let resources = [];
+
+    fetch("resources.json")
+      .then(res => res.json())
+      .then(data => {
+        resources = data;
+        fuse = new Fuse(resources, {
+          keys: ["title", "subject", "type", "semester", "department"],
+          threshold: 0.4
+        });
+      });
+
+    function runSearch() {
+      const query = document.getElementById('searchInput').value.trim();
+      const results = fuse.search(query);
+      const resultBox = document.getElementById('results');
+      resultBox.innerHTML = "";
+
+      if (results.length === 0) {
+        resultBox.innerHTML = "<p>❌ No results found.</p>";
+        return;
+      }
+
+      results.forEach(r => {
+        const item = r.item;
+        const div = document.createElement("div");
+        div.className = "result";
+        div.innerHTML = `
+          <p><strong>${item.title}</strong> (${item.type} - Sem ${item.semester} ${item.department})<br>
+          📎 <a href="${item.link}" target="_blank">Open Resource</a></p>
+        `;
+        resultBox.appendChild(div);
+      });
+    }
+  </script>
+</body>
+</html>
