@@ -1,1 +1,0 @@
-Basic searching chatbot integrated, but not integrated with google drive. Depends on resources.json. 
