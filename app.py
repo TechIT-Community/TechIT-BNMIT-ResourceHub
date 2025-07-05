@@ -75,4 +75,5 @@ if __name__ == "__main__":
         except Exception as e:
             print("❌ Error connecting to DB:", e)
 
-    app.run(debug=True)
+    # app.run(debug=True)
+    app.run(host = '0.0.0.0')
