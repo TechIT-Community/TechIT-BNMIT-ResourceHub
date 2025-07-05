@@ -1,0 +1,1 @@
+Basic searching chatbot integrated, which depends on resources.json
