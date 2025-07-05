@@ -1,15 +1,19 @@
 import os
+from datetime import datetime
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 from app import db, Resource, app
-from datetime import datetime
 
-# 🔧 Replace with your top-level Google Drive folder ID
+# ✅ Folder ID to scan from
 ROOT_FOLDER_ID = "1Le_C3BJGhWXzOJO8XJcM4DmGzJwWZcqc"
 
-# Only metadata permission required
+# ✅ Allowed file extensions
+ALLOWED_EXTENSIONS = {'.pdf', '.jpg', '.jpeg', '.docx'}
+
+# ✅ Google API Scopes
 SCOPES = ['https://www.googleapis.com/auth/drive.metadata.readonly']
+
 
 def authenticate_drive():
     creds = None
@@ -22,52 +26,82 @@ def authenticate_drive():
             token.write(creds.to_json())
     return build('drive', 'v3', credentials=creds)
 
-def scan_drive_flat(service, folder_id):
+
+def is_allowed_file(name):
+    _, ext = os.path.splitext(name.lower())
+    return ext in ALLOWED_EXTENSIONS
+
+
+def traverse_drive(service, folder_id, collected=[]):
     results = service.files().list(
         q=f"'{folder_id}' in parents and trashed = false",
-        fields="files(id, name, mimeType, webViewLink)",
+        fields="files(id, name, mimeType, modifiedTime, webViewLink)",
     ).execute()
 
-    items = results.get('files', [])
-    resources = []
-
-    for item in items:
+    for item in results.get('files', []):
         if item['mimeType'] == 'application/vnd.google-apps.folder':
-            continue  # Skip subfolders for now
+            traverse_drive(service, item['id'], collected)
+        else:
+            if is_allowed_file(item['name']):
+                collected.append(item)
 
-        # Skip code files or hidden
-        if item['name'].startswith('.') or item['name'].endswith(('.py', '.cpp', '.exe')):
-            continue
+    return collected
 
-        resource = Resource(
-            title=item['name'],
-            subject="Unknown",        # Can be updated later
-            semester="Unknown",
-            department="Unknown",
-            type="PDF" if item['name'].endswith('.pdf') else "File",
-            source="drive",
-            link=item['webViewLink'],
-            last_updated=datetime.utcnow()
-        )
 
-        print(f"📄 {item['name']}")
-        resources.append(resource)
+def sync_drive_to_db(service):
+    print("🔍 Indexing Drive contents...")
+    files = traverse_drive(service, ROOT_FOLDER_ID)
 
-    return resources
+    # Load existing file IDs from the database
+    existing_files = {r.link: r for r in Resource.query.filter_by(source="drive").all()}
+    current_links = set()
 
-# 🔁 Run inside Flask context
+    inserted, updated = 0, 0
+
+    for item in files:
+        file_link = item['webViewLink']
+        current_links.add(file_link)
+
+        if file_link in existing_files:
+            # Check if update is needed
+            resource = existing_files[file_link]
+            drive_modified = datetime.fromisoformat(item['modifiedTime'].replace("Z", "+00:00"))
+            if resource.last_updated < drive_modified:
+                resource.title = item['name']
+                resource.last_updated = drive_modified
+                db.session.commit()
+                updated += 1
+        else:
+            # New entry
+            resource = Resource(
+                title=item['name'],
+                subject="Unknown",
+                semester="Unknown",
+                department="Unknown",
+                type=os.path.splitext(item['name'])[1][1:].upper(),
+                source="drive",
+                link=file_link,
+                last_updated=datetime.fromisoformat(item['modifiedTime'].replace("Z", "+00:00"))
+            )
+            db.session.add(resource)
+            db.session.commit()
+            inserted += 1
+
+    # Delete stale entries
+    for link in existing_files:
+        if link not in current_links:
+            db.session.delete(existing_files[link])
+    db.session.commit()
+
+    print(f"✅ Sync complete. Inserted: {inserted}, Updated: {updated}, Deleted: {len(existing_files) - len(current_links)}")
+
+
+# 🧠 Run the sync process
 with app.app_context():
     try:
         print("🔐 Authenticating with Google Drive...")
         service = authenticate_drive()
-        print("🔍 Scanning flat folder contents...")
-        resources = scan_drive_flat(service, ROOT_FOLDER_ID)
-
-        for r in resources:
-            db.session.add(r)
-
-        db.session.commit()
-        print(f"✅ Inserted {len(resources)} Drive file(s) into the database.")
+        sync_drive_to_db(service)
     except Exception as e:
-        print("❌ Error during Drive scan:", e)
+        print("❌ Error during Drive sync:", e)
         db.session.rollback()
