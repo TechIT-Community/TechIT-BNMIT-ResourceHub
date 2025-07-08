@@ -1,16 +1,23 @@
+import os
 from sqlalchemy import create_engine, Column, Integer, Text, DateTime, Boolean
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.dialects.postgresql import TSVECTOR
 from datetime import datetime
 
-# 🛢️ Database configuration
-DATABASE_URL = "postgresql://postgres:admin@localhost/demodb"
+# ✅ Use st.secrets when running inside Streamlit
+try:
+    import streamlit as st
+    DATABASE_URL = st.secrets["DB_URL"]
+except:
+    # ✅ Use .env or fallback for local scripts like drive_scanner/github_scanner
+    DATABASE_URL = os.getenv("DB_URL", "postgresql://postgres:admin@localhost/demodb")
 
+# 🛢️ Create engine and session
 engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
-# 📦 Base class
+# 📦 Base class for model definitions
 Base = declarative_base()
 
 # 📄 Resource model
@@ -27,10 +34,9 @@ class Resource(Base):
     link = Column(Text)
     last_updated = Column(DateTime, default=datetime.utcnow)
     search_vector = Column(TSVECTOR)
-    is_folder = Column(Boolean, default=False)  # ✅ NEW COLUMN
+    is_folder = Column(Boolean, default=False)
 
-# ⬇️ Add this at the end of db.py
-
+# 🔍 Metadata utility
 def get_all_metadata():
     session = SessionLocal()
     try:
@@ -41,3 +47,7 @@ def get_all_metadata():
     finally:
         session.close()
 
+# 🛠️ (Optional) create tables if running this directly
+if __name__ == "__main__":
+    Base.metadata.create_all(bind=engine)
+    print("✅ Tables created.")
