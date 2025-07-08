@@ -9,6 +9,7 @@ from datetime import datetime
 try:
     import streamlit as st
     DATABASE_URL = st.secrets["DB_URL"]
+    print("Database URL in use : ", DATABASE_URL)
 except:
     # ✅ Use .env or fallback for local scripts like drive_scanner/github_scanner
     DATABASE_URL = os.getenv("DB_URL", "postgresql://postgres:admin@localhost/demodb")
