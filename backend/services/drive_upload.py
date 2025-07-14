@@ -5,38 +5,23 @@ from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseUpload
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
+from google.oauth2 import service_account
+from config import Config
 
 SCOPES = ['https://www.googleapis.com/auth/drive.file']
 ROOT_FOLDER_ID = '1Le_C3BJGhWXzOJO8XJcM4DmGzJwWZcqc'  # Replace with your actual folder ID
 
 def authenticate_drive():
-    """
-    Authenticates and returns a Google Drive service object using credentials from env.
-    """
-    creds = None
-
-    # Load token.json if it exists (OAuth2 refresh tokens)
-    if os.path.exists('token.json'):
-        creds = Credentials.from_authorized_user_file('token.json', SCOPES)
-    else:
-        # Parse credentials JSON string from env
-        credentials_json_str = os.getenv("GOOGLE_CREDENTIALS_PATH")
-        if not credentials_json_str:
-            raise Exception("GOOGLE_CREDENTIALS_PATH environment variable is missing")
-
-        try:
-            credentials_dict = json.loads(credentials_json_str)
-        except json.JSONDecodeError:
-            raise Exception("Invalid JSON in GOOGLE_CREDENTIALS_PATH")
-
-        flow = InstalledAppFlow.from_client_config(credentials_dict, SCOPES)
-        creds = flow.run_local_server(port=0)
-
-        # Save the token for reuse
-        with open('token.json', 'w') as token_file:
-            token_file.write(creds.to_json())
-
-    return build('drive', 'v3', credentials=creds)
+    try:
+        service_account_info = json.loads(Config.GOOGLE_CREDENTIALS_PATH)
+        creds = service_account.Credentials.from_service_account_info(
+            service_account_info,
+            scopes=SCOPES
+        )
+        return build('drive', 'v3', credentials=creds)
+    except Exception as e:
+        print("[!] Drive Auth Error:", str(e))
+        raise
 
 
 def ensure_folder(service, name, parent_id):

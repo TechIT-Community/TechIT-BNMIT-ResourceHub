@@ -3,6 +3,7 @@ import json
 from googleapiclient.discovery import build
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
+from google.oauth2 import service_account
 from db.database import SessionLocal
 from db.models import Resource
 from config import Config
@@ -11,30 +12,16 @@ SCOPES = ['https://www.googleapis.com/auth/drive.metadata.readonly']
 ROOT_FOLDER_ID = Config.GOOGLE_DRIVE_ROOT_FOLDER_ID
 
 def authenticate_drive():
-    creds = None
     try:
-        if os.path.exists('token.json'):
-            creds = Credentials.from_authorized_user_file('token.json', SCOPES)
-        else:
-            credentials_json_str = os.getenv("GOOGLE_CREDENTIALS_PATH")
-            if not credentials_json_str:
-                raise Exception("Missing GOOGLE_CREDENTIALS_PATH env var")
-
-            try:
-                credentials_dict = json.loads(credentials_json_str)
-            except json.JSONDecodeError:
-                raise Exception("Invalid GOOGLE_CREDENTIALS_PATH JSON")
-
-            flow = InstalledAppFlow.from_client_config(credentials_dict, SCOPES)
-            creds = flow.run_local_server(port=0)
-
-            with open('token.json', 'w') as token:
-                token.write(creds.to_json())
+        service_account_info = json.loads(Config.GOOGLE_CREDENTIALS_PATH)
+        creds = service_account.Credentials.from_service_account_info(
+            service_account_info,
+            scopes=SCOPES
+        )
+        return build('drive', 'v3', credentials=creds)
     except Exception as e:
-        print("[!] Google Auth Error:", str(e))
-        raise Exception("Google Drive authentication failed")
-    
-    return build('drive', 'v3', credentials=creds)
+        print("[!] Drive Auth Error:", str(e))
+        raise
 
 def run_drive_sync():
     try:
